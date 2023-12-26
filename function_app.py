@@ -7,6 +7,7 @@ import logging
 from azure.core.exceptions import HttpResponseError
 from azure.confidentialledger import ConfidentialLedgerClient
 from azure.confidentialledger.certificate import ConfidentialLedgerCertificateClient
+from azure.identity import ManagedIdentityCredential
 from azure.identity import DefaultAzureCredential
 from verify_receipt import verify_receipt
 from verify_hash import valid_hash
@@ -47,6 +48,7 @@ def bkch_doc(req: func.HttpRequest) -> func.HttpResponse:
     ledger_url = "https://" + ledger_name + ".confidential-ledger.azure.com"
 
     # Set of credential to be used for confidential ledger
+    # credential = ManagedIdentityCredential() if os.getenv("ENVIRONMENT") == "production" else DefaultAzureCredential()
     credential = DefaultAzureCredential()
 
     # Creation of Confidential Ledger Certificate
@@ -120,6 +122,7 @@ def bkch_doc_content(req: func.HttpRequest) -> func.HttpResponse:
     ledger_url = "https://" + ledger_name + ".confidential-ledger.azure.com"
 
     # Set of credential to be used for confidential ledger
+    # credential = ManagedIdentityCredential() if os.getenv("ENVIRONMENT") == "production" else DefaultAzureCredential()
     credential = DefaultAzureCredential()
 
     # Creation of Confidential Ledger Certificate
