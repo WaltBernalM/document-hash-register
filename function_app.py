@@ -7,8 +7,6 @@ import logging
 from cffi import VerificationError
 from azure.core.exceptions import HttpResponseError
 from azure.confidentialledger import ConfidentialLedgerClient
-from azure.confidentialledger.certificate import ConfidentialLedgerCertificateClient
-from azure.identity import ManagedIdentityCredential
 from azure.identity import DefaultAzureCredential
 from verify_receipt import verify_receipt
 from verify_hash import valid_hash
@@ -18,7 +16,7 @@ app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 @app.route(route="bkch-doc", methods=["POST"])
 def bkch_doc(req: func.HttpRequest) -> func.HttpResponse:
-  logging.info('Python HTTP trigger function processed a request.')
+  logging.info('Python HTTP trigger function (bkch_doc) processed a request.')
 
   try:
     req_body = req.get_json()
@@ -42,7 +40,6 @@ def bkch_doc(req: func.HttpRequest) -> func.HttpResponse:
     ####################################################################################################################
     # Confidential ledger configuration section
     ####################################################################################################################
-    # resource_group = "Test"
     ledger_name = "document-hash"
     collection_id = "subledger:0"
     identity_url = "https://identity.confidential-ledger.core.azure.com"
@@ -103,6 +100,8 @@ def bkch_doc(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="bkch-doc/entry", methods=["GET"])
 def bkch_doc_content(req: func.HttpRequest) -> func.HttpResponse:
+  logging.info('Python HTTP trigger function (bkch_doc_content) processed a request.')
+
   try:
     transactionId = req.params.get('transactionId')
 
@@ -158,6 +157,8 @@ def bkch_doc_content(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="bkch-doc/verify-receipt", methods=["POST"])
 def bkch_doc_validation(req: func.HttpRequest) -> func.HttpResponse:
+  logging.info('Python HTTP trigger function (bkch_doc_validation) processed a request.')
+
   try:
     if os.getenv("ENVIRONMENT") != "production":
       ledger_name = "document-hash"
