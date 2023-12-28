@@ -4,6 +4,7 @@ import os
 import azure.functions as func
 import logging
 
+from cffi import VerificationError
 from azure.core.exceptions import HttpResponseError
 from azure.confidentialledger import ConfidentialLedgerClient
 from azure.confidentialledger.certificate import ConfidentialLedgerCertificateClient
@@ -11,6 +12,7 @@ from azure.identity import ManagedIdentityCredential
 from azure.identity import DefaultAzureCredential
 from verify_receipt import verify_receipt
 from verify_hash import valid_hash
+from write_network_identity_cert import write_network_identity_cert
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -43,21 +45,16 @@ def bkch_doc(req: func.HttpRequest) -> func.HttpResponse:
     # resource_group = "Test"
     ledger_name = "document-hash"
     collection_id = "subledger:0"
-    # subscription_id = "194a93b8-47fc-4913-870e-ff049ecc2307"
     identity_url = "https://identity.confidential-ledger.core.azure.com"
     ledger_url = "https://" + ledger_name + ".confidential-ledger.azure.com"
 
     # Set of credential to be used for confidential ledger
-    # credential = ManagedIdentityCredential() if os.getenv("ENVIRONMENT") == "production" else DefaultAzureCredential()
     credential = DefaultAzureCredential()
 
     # Creation of Confidential Ledger Certificate
     ledger_tls_cert_file_name = "network_certificate.pem"
     if os.getenv("ENVIRONMENT") != "production":
-      identity_client = ConfidentialLedgerCertificateClient(identity_url)
-      network_identity = identity_client.get_ledger_identity(ledger_id=ledger_name)
-      with open(ledger_tls_cert_file_name, "w") as cert_file:
-        cert_file.write(network_identity['ledgerTlsCertificate'])
+      write_network_identity_cert(ledger_tls_cert_file_name, ledger_name, identity_url)
 
     # Creation of Confidential Ledger Client
     ledger_client = ConfidentialLedgerClient(
@@ -122,16 +119,12 @@ def bkch_doc_content(req: func.HttpRequest) -> func.HttpResponse:
     ledger_url = "https://" + ledger_name + ".confidential-ledger.azure.com"
 
     # Set of credential to be used for confidential ledger
-    # credential = ManagedIdentityCredential() if os.getenv("ENVIRONMENT") == "production" else DefaultAzureCredential()
     credential = DefaultAzureCredential()
 
     # Creation of Confidential Ledger Certificate
     ledger_tls_cert_file_name = "network_certificate.pem"
     if os.getenv("ENVIRONMENT") != "production":
-      identity_client = ConfidentialLedgerCertificateClient(identity_url)
-      network_identity = identity_client.get_ledger_identity(ledger_id=ledger_name)
-      with open(ledger_tls_cert_file_name, "w") as cert_file:
-        cert_file.write(network_identity['ledgerTlsCertificate'])
+      write_network_identity_cert(ledger_tls_cert_file_name, ledger_name, identity_url)
 
     # Creation of Confidential Ledger Client
     ledger_client = ConfidentialLedgerClient(
@@ -166,17 +159,11 @@ def bkch_doc_content(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="bkch-doc/verify-receipt", methods=["POST"])
 def bkch_doc_validation(req: func.HttpRequest) -> func.HttpResponse:
   try:
-    ####################################################################################################################
-    # Confidential ledger configuration section
-    ####################################################################################################################
     if os.getenv("ENVIRONMENT") != "production":
       ledger_name = "document-hash"
       identity_url = "https://identity.confidential-ledger.core.azure.com"
-      identity_client = ConfidentialLedgerCertificateClient(identity_url)
-      network_identity = identity_client.get_ledger_identity(ledger_id=ledger_name)
       ledger_tls_cert_file_name = "network_certificate.pem"
-      with open(ledger_tls_cert_file_name, "w") as cert_file:
-        cert_file.write(network_identity['ledgerTlsCertificate'])
+      write_network_identity_cert(ledger_tls_cert_file_name, ledger_name, identity_url)
 
     # Verification of the certificate against the network_certificate
     with open("network_certificate.pem", "r") as service_certificate_file:
@@ -188,9 +175,47 @@ def bkch_doc_validation(req: func.HttpRequest) -> func.HttpResponse:
       if not receipt:
         response = { "message": "No receipt provided" }
         return func.HttpResponse(json.dumps(response), status_code=400, mimetype="application/json")
+      
+      # Verify if transactionId property exists
+      transaction_id = req_body.get("transactionId")
+      if not transaction_id:
+        response = { "message": "No transactionId provided" }
+        return func.HttpResponse(json.dumps(response), status_code=400, mimetype="application/json")
+
+      ##################################################################################################################
+      # Confidential ledger configuration section
+      ##################################################################################################################
+      ledger_name = "document-hash"
+      identity_url = "https://identity.confidential-ledger.core.azure.com"
+      ledger_url = "https://" + ledger_name + ".confidential-ledger.azure.com"
+      ledger_tls_cert_file_name = "network_certificate.pem"
+      
+      # Set of credential to be used for confidential ledger
+      credential = DefaultAzureCredential()
+
+      # Creation of Confidential Ledger Client
+      ledger_client = ConfidentialLedgerClient(
+        endpoint=ledger_url,
+        credential=credential,
+        ledger_certificate_path=ledger_tls_cert_file_name
+      )
+
+      # Retrieve the original transaction receipt
+      get_original_full_receipt = ledger_client.begin_get_receipt(transaction_id)
+      original_full_receipt = get_original_full_receipt.result()
+      original_transaction_id = original_full_receipt.get("transactionId")
+
+      # Verification of the transaction ids
+      if transaction_id != original_transaction_id:
+        raise VerificationError("Receipt verification failed")
 
       # verification of receipt
+      original_full_receipt_json = json.dumps(original_full_receipt)
+      full_receipt_json = json.dumps(req_body)
+      if original_full_receipt_json != full_receipt_json:
+        raise VerificationError("Receipt verification failed")
       verify_receipt(receipt, service_certificate_cert)
+      
       response = {
         "verificationStatus": "Passed",
         "receiptIsValid": True
