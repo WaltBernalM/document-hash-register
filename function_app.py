@@ -41,9 +41,9 @@ def bkch_doc(req: func.HttpRequest) -> func.HttpResponse:
     ####################################################################################################################
     # Confidential ledger configuration section
     ####################################################################################################################
-    ledger_name = "document-hash"
-    collection_id = "subledger:0"
-    identity_url = "https://identity.confidential-ledger.core.azure.com"
+    ledger_name = str(os.getenv("LEDGER_NAME"))
+    collection_id = str(os.getenv("COLLECTION_ID"))
+    identity_url = str(os.getenv("IDENTITY_URL"))
     ledger_url = "https://" + ledger_name + ".confidential-ledger.azure.com"
 
     # Set of credential to be used for confidential ledger
@@ -112,8 +112,8 @@ def bkch_doc_content(req: func.HttpRequest) -> func.HttpResponse:
     ####################################################################################################################
     # Confidential ledger configuration section
     ####################################################################################################################
-    ledger_name = "document-hash"
-    identity_url = "https://identity.confidential-ledger.core.azure.com"
+    ledger_name = str(os.getenv("LEDGER_NAME"))
+    identity_url = str(os.getenv("IDENTITY_URL"))
     ledger_url = "https://" + ledger_name + ".confidential-ledger.azure.com"
 
     # Set of credential to be used for confidential ledger
@@ -185,8 +185,8 @@ def bkch_doc_validation(req: func.HttpRequest) -> func.HttpResponse:
       ##################################################################################################################
       # Confidential ledger configuration section
       ##################################################################################################################
-      ledger_name = "document-hash"
-      identity_url = "https://identity.confidential-ledger.core.azure.com"
+      ledger_name = str(os.getenv("LEDGER_NAME"))
+      identity_url = str(os.getenv("IDENTITY_URL"))
       ledger_url = "https://" + ledger_name + ".confidential-ledger.azure.com"
       ledger_tls_cert_file_name = "network_certificate.pem"
       
