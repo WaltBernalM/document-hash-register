@@ -11,7 +11,7 @@ from azure.identity import DefaultAzureCredential
 from assign_user_to_ledger import assign_user_to_ledger
 from verify_receipt import verify_receipt
 from verify_hash import valid_hash
-from write_network_identity_cert import write_network_identity_cert
+from write_network_identity_pem import write_network_identity_pem
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -52,7 +52,7 @@ def bkch_doc(req: func.HttpRequest) -> func.HttpResponse:
     # Creation of Confidential Ledger Certificate
     ledger_tls_cert_file_name = "network_certificate.pem"
     if os.getenv("ENVIRONMENT") != "production":
-      write_network_identity_cert(ledger_tls_cert_file_name, ledger_name, identity_url)
+      write_network_identity_pem(ledger_tls_cert_file_name, ledger_name, identity_url)
 
     # Creation of Confidential Ledger Client
     ledger_client = ConfidentialLedgerClient(
@@ -122,7 +122,7 @@ def bkch_doc_content(req: func.HttpRequest) -> func.HttpResponse:
     # Creation of Confidential Ledger Certificate
     ledger_tls_cert_file_name = "network_certificate.pem"
     if os.getenv("ENVIRONMENT") != "production":
-      write_network_identity_cert(ledger_tls_cert_file_name, ledger_name, identity_url)
+      write_network_identity_pem(ledger_tls_cert_file_name, ledger_name, identity_url)
 
     # Creation of Confidential Ledger Client
     ledger_client = ConfidentialLedgerClient(
@@ -163,7 +163,7 @@ def bkch_doc_validation(req: func.HttpRequest) -> func.HttpResponse:
       ledger_name = "document-hash"
       identity_url = "https://identity.confidential-ledger.core.azure.com"
       ledger_tls_cert_file_name = "network_certificate.pem"
-      write_network_identity_cert(ledger_tls_cert_file_name, ledger_name, identity_url)
+      write_network_identity_pem(ledger_tls_cert_file_name, ledger_name, identity_url)
 
     # Verification of the certificate against the network_certificate
     with open("network_certificate.pem", "r") as service_certificate_file:
