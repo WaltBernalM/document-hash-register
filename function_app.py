@@ -8,6 +8,7 @@ from cffi import VerificationError
 from azure.core.exceptions import HttpResponseError
 from azure.confidentialledger import ConfidentialLedgerClient
 from azure.identity import DefaultAzureCredential
+from assign_user_to_ledger import assign_user_to_ledger
 from verify_receipt import verify_receipt
 from verify_hash import valid_hash
 from write_network_identity_cert import write_network_identity_cert
@@ -61,13 +62,11 @@ def bkch_doc(req: func.HttpRequest) -> func.HttpResponse:
     )
 
     # Assign a previously created User to the ledger client as Contributor
-    # username="pcl-app@waltr7hotmail.onmicrosoft.com"
-    # password="Bemw930628"
-    # user_id = "85b06c53-66e0-41ae-9419-944ab12b8a7e"
-    # user = ledger_client.create_or_update_user(
-    #   user_id, {"assignedRole": "Contributor"}
-    # )
-    # print('user: ', user)
+    if os.getenv("ASSIGN_USER_ID") != "":
+      user_id = str(os.getenv("ASSIGN_USER_ID"))
+      role = "Contributor"
+      user_assigned = assign_user_to_ledger(user_id, role, ledger_client)
+      logging.info(user_assigned)
 
     # Append of document hash in Confidential Ledger and generation of Transaction Receipt
     data= {
