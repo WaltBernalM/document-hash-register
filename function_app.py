@@ -9,7 +9,7 @@ from azure.core.exceptions import HttpResponseError
 from azure.confidentialledger import ConfidentialLedgerClient
 from azure.identity import DefaultAzureCredential
 from azure.identity import ManagedIdentityCredential
-from assign_user_to_ledger import assign_user_to_ledger
+from set_azure_function_role import set_azure_function_role
 from verify_receipt import verify_receipt
 from verify_hash import valid_hash
 from write_network_identity_pem import write_network_identity_pem
@@ -62,12 +62,9 @@ def bkch_doc(req: func.HttpRequest) -> func.HttpResponse:
       ledger_certificate_path=ledger_tls_cert_file_name
     )
 
-    # Assign a previously created User to the ledger client as Contributor
-    if os.getenv("ASSIGN_USER_ID") != "":
-      user_id = str(os.getenv("ASSIGN_USER_ID"))
-      role = "Contributor"
-      user_assigned = assign_user_to_ledger(user_id, role, ledger_client)
-      logging.info(user_assigned)
+    # Assign/update a previously created User or ObjectId to the ledger client as Contributor
+    azure_function_user_role = set_azure_function_role(ledger_client)
+    logging.info(azure_function_user_role)
 
     # Append of document hash in Confidential Ledger and generation of Transaction Receipt
     data= {
@@ -88,8 +85,17 @@ def bkch_doc(req: func.HttpRequest) -> func.HttpResponse:
 
     return func.HttpResponse(receipt_json, status_code=201, mimetype="application/json")
   except HttpResponseError as ex:
-    response = { "message": f"An error occurred in Confidential Ledger: {ex}" }
-    return func.HttpResponse(json.dumps(response), status_code=400, mimetype="application/json")
+    error_code = ex.error.code if ex.error else None
+    error_message = ex.error.message if ex.error else None
+    status_code = ex.status_code
+    response = {
+      "message": "An error occurred in Confidential Ledger",
+      "errorMessage": f"{error_message}",
+      "statusCode": f"{status_code}",
+      "errorCode": f"{error_code}",
+      "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
+    }
+    return func.HttpResponse(json.dumps(response), status_code=500, mimetype="application/json")
   except ValueError:
       response = {"message": "Invalid JSON body provided"}
       return func.HttpResponse(json.dumps(response), status_code=400, mimetype="application/json")
@@ -121,10 +127,6 @@ def bkch_doc_content(req: func.HttpRequest) -> func.HttpResponse:
     # Set of credential to be used for confidential ledger
     credential = ManagedIdentityCredential() if os.getenv("ENVIRONMENT") == "production" else DefaultAzureCredential()
 
-    # get_token = credential.get_token("https://management.azure.com/.default")
-    # tokenString = get_token
-    # logging.info(f"token retrieved: {tokenString}")
-
     # Creation of Confidential Ledger Certificate
     ledger_tls_cert_file_name = "network_certificate.pem"
     if os.getenv("ENVIRONMENT") != "production":
@@ -136,6 +138,10 @@ def bkch_doc_content(req: func.HttpRequest) -> func.HttpResponse:
       credential=credential,
       ledger_certificate_path=ledger_tls_cert_file_name
     )
+
+    # Assign/update a previously created User or ObjectId to the ledger client as Contributor
+    azure_function_user_role = set_azure_function_role(ledger_client)
+    logging.info(azure_function_user_role)
 
     # Retrieve the entry
     get_entry_poller = ledger_client.begin_get_ledger_entry(transaction_id=transactionId)
@@ -156,12 +162,15 @@ def bkch_doc_content(req: func.HttpRequest) -> func.HttpResponse:
   except HttpResponseError as ex:
     error_code = ex.error.code if ex.error else None
     error_message = ex.error.message if ex.error else None
-    response = { 
-      "errorMessage": f"An error occurred in Confidential Ledger: {error_message}",
+    status_code = ex.status_code
+    response = {
+      "message": "An error occurred in Confidential Ledger",
+      "errorMessage": f"{error_message}",
+      "statusCode": f"{status_code}",
       "errorCode": f"{error_code}",
       "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
     }
-    return func.HttpResponse(json.dumps(response), status_code=400, mimetype="application/json")
+    return func.HttpResponse(json.dumps(response), status_code=500, mimetype="application/json")
   except Exception as ex:
     response = { "message": f"An unexpected error occurred: {ex}" }
     return func.HttpResponse(json.dumps(response), status_code=500, mimetype="application/json")
@@ -212,6 +221,10 @@ def bkch_doc_validation(req: func.HttpRequest) -> func.HttpResponse:
         ledger_certificate_path=ledger_tls_cert_file_name
       )
 
+      # Assign/update a previously created User or ObjectId to the ledger client as Contributor
+      azure_function_user_role = set_azure_function_role(ledger_client)
+      logging.info(azure_function_user_role)
+
       # Retrieve the original transaction receipt
       get_original_full_receipt = ledger_client.begin_get_receipt(transaction_id)
       original_full_receipt = get_original_full_receipt.result()
@@ -235,8 +248,17 @@ def bkch_doc_validation(req: func.HttpRequest) -> func.HttpResponse:
       response_json = json.dumps(response)
       return func.HttpResponse(response_json, status_code=200, mimetype="application/json")
   except HttpResponseError as ex:
-    response = { "message": f"An error occurred in Confidential Ledger: {ex}" }
-    return func.HttpResponse(json.dumps(response), status_code=400, mimetype="application/json")
+    error_code = ex.error.code if ex.error else None
+    error_message = ex.error.message if ex.error else None
+    status_code = ex.status_code
+    response = {
+      "message": "An error occurred in Confidential Ledger",
+      "errorMessage": f"{error_message}",
+      "statusCode": f"{status_code}",
+      "errorCode": f"{error_code}",
+      "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
+    }
+    return func.HttpResponse(json.dumps(response), status_code=500, mimetype="application/json")
   except ValueError:
     response = {"message": "Invalid JSON body provided"}
     return func.HttpResponse(json.dumps(response), status_code=400, mimetype="application/json")
