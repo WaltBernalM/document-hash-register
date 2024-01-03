@@ -64,7 +64,7 @@ def bkch_doc(req: func.HttpRequest) -> func.HttpResponse:
 
     # Assign/update a previously created User or ObjectId to the ledger client as Contributor
     azure_function_user_role = set_azure_function_role(ledger_client)
-    logging.info(azure_function_user_role)
+    logging.info(f"azure function role: {azure_function_user_role}")
 
     # Append of document hash in Confidential Ledger and generation of Transaction Receipt
     data= {
@@ -141,7 +141,7 @@ def bkch_doc_content(req: func.HttpRequest) -> func.HttpResponse:
 
     # Assign/update a previously created User or ObjectId to the ledger client as Contributor
     azure_function_user_role = set_azure_function_role(ledger_client)
-    logging.info(azure_function_user_role)
+    logging.info(f"azure function role: {azure_function_user_role}")
 
     # Retrieve the entry
     get_entry_poller = ledger_client.begin_get_ledger_entry(transaction_id=transactionId)
@@ -180,12 +180,6 @@ def bkch_doc_validation(req: func.HttpRequest) -> func.HttpResponse:
   logging.info('Python HTTP trigger function (bkch_doc_validation) processed a request.')
 
   try:
-    if os.getenv("ENVIRONMENT") != "production":
-      ledger_name = "document-hash"
-      identity_url = "https://identity.confidential-ledger.core.azure.com"
-      ledger_tls_cert_file_name = "network_certificate.pem"
-      write_network_identity_pem(ledger_tls_cert_file_name, ledger_name, identity_url)
-
     # Verification of the certificate against the network_certificate
     with open("network_certificate.pem", "r") as service_certificate_file:
       service_certificate_cert = service_certificate_file.read()
@@ -210,6 +204,10 @@ def bkch_doc_validation(req: func.HttpRequest) -> func.HttpResponse:
       identity_url = str(os.getenv("IDENTITY_URL"))
       ledger_url = "https://" + ledger_name + ".confidential-ledger.azure.com"
       ledger_tls_cert_file_name = "network_certificate.pem"
+
+      # Creation of Confidential Ledger Certificate
+      if os.getenv("ENVIRONMENT") != "production":
+        write_network_identity_pem(ledger_tls_cert_file_name, ledger_name, identity_url)
       
       # Set of credential to be used for confidential ledger
       credential = ManagedIdentityCredential() if os.getenv("ENVIRONMENT") == "production" else DefaultAzureCredential()
@@ -223,7 +221,7 @@ def bkch_doc_validation(req: func.HttpRequest) -> func.HttpResponse:
 
       # Assign/update a previously created User or ObjectId to the ledger client as Contributor
       azure_function_user_role = set_azure_function_role(ledger_client)
-      logging.info(azure_function_user_role)
+      logging.info(f"azure function role: {azure_function_user_role}")
 
       # Retrieve the original transaction receipt
       get_original_full_receipt = ledger_client.begin_get_receipt(transaction_id)

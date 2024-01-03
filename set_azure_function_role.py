@@ -14,7 +14,7 @@ def set_azure_function_role(ledger_client: ConfidentialLedgerClient) -> str:
         user = ledger_client.create_or_update_user(object_id, {"assignedRole": assigned_role})
         return json.dumps(user)
       except Exception as e:
-        return f"An error occurred while creating or updating user: {e}. \ntimestamp: {current_time}"
+        return f"An error occurred while creating or updating user: {e}."
     else:
-      return f"FUNCTION_OBJECT_PRINCIPAL_ID is not set. Unable to create or update azure function role. \ntimestamp: {current_time}"
-  return f"Production Environment, cannot create or update azure function role. \ntimestamp: {current_time}"
+      return "FUNCTION_OBJECT_PRINCIPAL_ID is not set. Unable to create or update azure function role."
+  return "Production Environment, cannot create or update azure function role."
