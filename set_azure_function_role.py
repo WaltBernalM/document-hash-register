@@ -5,7 +5,6 @@ import os
 from azure.confidentialledger import ConfidentialLedgerClient
 
 def set_azure_function_role(ledger_client: ConfidentialLedgerClient) -> str:
-  current_time = datetime.datetime.utcnow().isoformat() + "Z"
   if os.getenv("ENVIRONMENT") == "development":
     object_id = os.getenv("FUNCTION_OBJECT_PRINCIPAL_ID")
     if object_id is not None:
