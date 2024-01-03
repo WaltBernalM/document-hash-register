@@ -8,6 +8,7 @@ from cffi import VerificationError
 from azure.core.exceptions import HttpResponseError
 from azure.confidentialledger import ConfidentialLedgerClient
 from azure.identity import DefaultAzureCredential
+from azure.identity import ManagedIdentityCredential
 from assign_user_to_ledger import assign_user_to_ledger
 from verify_receipt import verify_receipt
 from verify_hash import valid_hash
@@ -47,7 +48,7 @@ def bkch_doc(req: func.HttpRequest) -> func.HttpResponse:
     ledger_url = "https://" + ledger_name + ".confidential-ledger.azure.com"
 
     # Set of credential to be used for confidential ledger
-    credential = DefaultAzureCredential()
+    credential = ManagedIdentityCredential() if os.getenv("ENVIRONMENT") == "production" else DefaultAzureCredential()
 
     # Creation of Confidential Ledger Certificate
     ledger_tls_cert_file_name = "network_certificate.pem"
@@ -96,10 +97,11 @@ def bkch_doc(req: func.HttpRequest) -> func.HttpResponse:
     response = { "message": f"An unexpected error occurred: {ex}" }
     return func.HttpResponse(json.dumps(response), status_code=500, mimetype="application/json")
 
-
 @app.route(route="bkch-doc/entry", methods=["GET"])
 def bkch_doc_content(req: func.HttpRequest) -> func.HttpResponse:
   logging.info('Python HTTP trigger function (bkch_doc_content) processed a request.')
+
+  tokenString = ""
 
   try:
     transactionId = req.params.get('transactionId')
@@ -117,7 +119,11 @@ def bkch_doc_content(req: func.HttpRequest) -> func.HttpResponse:
     ledger_url = "https://" + ledger_name + ".confidential-ledger.azure.com"
 
     # Set of credential to be used for confidential ledger
-    credential = DefaultAzureCredential()
+    credential = ManagedIdentityCredential() if os.getenv("ENVIRONMENT") == "production" else DefaultAzureCredential()
+
+    # get_token = credential.get_token("https://management.azure.com/.default")
+    # tokenString = get_token
+    # logging.info(f"token retrieved: {tokenString}")
 
     # Creation of Confidential Ledger Certificate
     ledger_tls_cert_file_name = "network_certificate.pem"
@@ -148,7 +154,13 @@ def bkch_doc_content(req: func.HttpRequest) -> func.HttpResponse:
     response_json = json.dumps(response_data, default=lambda x: x.__dict__)
     return func.HttpResponse(response_json, status_code=201, mimetype="application/json")
   except HttpResponseError as ex:
-    response = { "message": f"An error occurred in Confidential Ledger: {ex}" }
+    error_code = ex.error.code if ex.error else None
+    error_message = ex.error.message if ex.error else None
+    response = { 
+      "errorMessage": f"An error occurred in Confidential Ledger: {error_message}",
+      "errorCode": f"{error_code}",
+      "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
+    }
     return func.HttpResponse(json.dumps(response), status_code=400, mimetype="application/json")
   except Exception as ex:
     response = { "message": f"An unexpected error occurred: {ex}" }
@@ -191,7 +203,7 @@ def bkch_doc_validation(req: func.HttpRequest) -> func.HttpResponse:
       ledger_tls_cert_file_name = "network_certificate.pem"
       
       # Set of credential to be used for confidential ledger
-      credential = DefaultAzureCredential()
+      credential = ManagedIdentityCredential() if os.getenv("ENVIRONMENT") == "production" else DefaultAzureCredential()
 
       # Creation of Confidential Ledger Client
       ledger_client = ConfidentialLedgerClient(
